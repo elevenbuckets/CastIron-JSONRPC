@@ -762,14 +762,60 @@ class BladeIron {
 const biapi = new BladeIron();
 
 // create a server
-var server = jayson.server(
+const server = jayson.server(
     {
-        initialize(obj) { 
+        initialize(obj) 
+	{ 
 		biapi.setup(obj); 
 		console.log(obj);
 		return biapi.connect(); 
-	}, // should be able to sanity check the provided config object
-	accounts() { console.log('accounts'); return Promise.resolve(biapi.allAccounts()); }	
+	},
+
+	accounts() 
+	{ 
+		return Promise.resolve(biapi.allAccounts()); 
+	},
+
+	unlock(ps)
+	{
+		biapi.password(ps);
+		return Promise.resolve(biapi.validPass());
+	},
+
+	hasPass()
+	{
+		return Promise.resolve(biapi.validPass());
+	},
+
+	sendTx(tokenSymbol, toAddress, amount, gasAmount)
+	{
+		let jobObj = {};
+
+		try {
+			jobObj = biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount);
+			return biapi.processJobs([jobObj]);
+		} catch (err) {
+			return reject(server.error(404, err));
+		}
+	},
+	
+	enqueueTx(tokenSymbol, toAddress, amount, gasAmount) 
+	{
+		return Promise.resolve(biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount));	
+	},
+
+	newApp(appSymbol, version, contract, abiPath, conditions, address = null)
+	{
+		try {
+			if (address !== null) {
+				return Promise.resolve(biapi.newApp(appSymbol)(version, contract, abiPath, conditions, address));
+			} else {
+				return Promise.resolve(biapi.newApp(appSymbol)(version, contract, abiPath, conditions));
+			}
+		} catch (err) {
+			return reject(server.error(404, err));
+		}	
+	}
     }
 );
 
