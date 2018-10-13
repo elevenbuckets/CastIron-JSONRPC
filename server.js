@@ -815,6 +815,44 @@ const server = jayson.server(
 		} catch (err) {
 			return reject(server.error(404, err));
 		}	
+	},
+
+	enqueueTk(type, contract, call, args, amount, gasAmount, tkObj)
+	{
+		return Promise.resolve(biapi.enqueueTk(type, contract, call, args)(amount, gasAmount, tkObj));
+	},
+
+	hotGroups(tokenList)
+	{
+		try {
+			return Promise.resolve(biapi.hotGroups(tokenList));
+		} catch(err) {
+			return reject(server.error(404, err));
+		}
+	},
+
+	setAccount(address)
+	{
+		return Promise.resolve(biapi.setAccount(address));
+	},
+
+	processJobs(jobList)
+	{
+		try {
+			return biapi.processJobs(jobList);
+		} catch (err) {
+			return reject(server.error(404, err));
+		}
+	},
+
+	addrEtherBalance(address)
+	{
+		return Promise.resolve(biapi.addrEtherBalance(address));
+	},
+
+	addrTokenBalance(tokenSymbol, address)
+	{
+		return Promise.resolve(biapi.addrTokenBalance(tokenSymbol)(address));
 	}
     }
 );
