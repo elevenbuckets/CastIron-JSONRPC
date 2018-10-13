@@ -6,6 +6,10 @@ const net    = require('net');
 const os     = require('os');
 const path   = require('path');
 const fs     = require('fs');
+const uuid  = require('uuid/v4');
+const bcup  = require('buttercup');
+const { createCredentials, FileDatasource } = bcup;
+const masterpw = new WeakMap();
 
 const web3EthFulfill = require( __dirname + '/conditions/Web3/Fulfill.js' );
 const web3EthSanity  = require( __dirname + '/conditions/Web3/Sanity.js' );
@@ -15,6 +19,8 @@ const allConditions  = { ...web3EthSanity, ...web3EthFulfill };
 class BladeIron {
 	constructor() 
 	{
+		masterpw.set(this, {passwd: null});
+
 		this.web3 = new Web3();
 		this.web3.toAddress = address => {
                         let addr = String(this.web3.toHex(this.web3.toBigNumber(address)));
@@ -41,8 +47,50 @@ class BladeIron {
 	                this.rpcAddr = this.configs.rpcAddr || null;
         	        this.ipcPath = this.configs.ipcPath || null;
 			this.networkID = this.configs.networkID || 'NO_CONFIG';
+	                this.condition = this.configs.condition || null; // 'sanity' or 'fulfill'
+	                this.archfile  = this.configs.passVault || null;
+
+			if (this.archfile !== null) {
+	                        this.ds = new FileDatasource(this.archfile);
+        	        } else {
+                	        this.ds = {};
+                	}
 		}
+
+		this.password = (value) => { masterpw.get(this).passwd = value };
+
+		this.validPass = () =>
+	        {
+	               let pw = masterpw.get(this).passwd;
+	               return this.ds.load(createCredentials.fromPassword(pw)).then( (myArchive) =>
+	                      {
+	                         return true;
+	                      })
+	                      .catch( (err) =>
+	                      {
+	                         return false;
+	                      });
+	        }
+
+		this.managedAddress = (address) =>
+	        {
+	               let pw = masterpw.get(this).passwd;
+	               return this.ds.load(createCredentials.fromPassword(pw)).then( (myArchive) =>
+	                      {
+	                        let vaults = myArchive.findGroupsByTitle("ElevenBuckets")[0];
+	                        let passes = undefined;
 	
+	                        try {
+	                                passes = vaults.findEntriesByProperty('username', address)[0].getProperty('password');
+	                        } catch(err) {
+	                                console.log(err);
+	                                passes = undefined;
+	                        }
+	
+	                        return typeof(passes) === 'undefined' ? {[address]: false} : {[address]: true};
+	                      })
+	        }
+
 		this.connectRPC = () => 
 		{
 	                const __connectRPC = (resolve, reject) => {
@@ -125,6 +173,158 @@ class BladeIron {
 	        }
 	
 		this.allAccounts = () => { return this.web3.eth.accounts; }
+
+		this.ethNetStatus = () =>
+	        {
+	                if (this.web3.net.peerCount === 0 && this.web3.eth.mining === false) {
+	                        return {blockHeight: 0, blockTime: 0, highestBlock: 0};
+	                }
+	
+	                let sync = this.web3.eth.syncing;
+	
+	                if (sync === false) {
+	                        let blockHeight = this.web3.eth.blockNumber;
+	                        let blockTime;
+	
+	                        try {
+	                                blockTime = this.web3.eth.getBlock(blockHeight).timestamp;
+	                        } catch(err) {
+	                                blockTime = 0;
+	                                blockHeight = 0;
+	                        }
+	
+	                        return {blockHeight, blockTime, highestBlock: blockHeight};
+	                } else {
+	                        let blockHeight = sync.currentBlock;
+	                        let highestBlock = sync.highestBlock;
+	                        let blockTime;
+	                        try {
+	                                blockTime = this.web3.eth.getBlock(blockHeight).timestamp;
+	                        } catch(err) {
+	                                blockTime = 0;
+	                                blockHeight = 0;
+	                                highestBlock = 0;
+	                        }
+	
+	                        return {blockHeight, blockTime, highestBlock};
+	                }
+	        }
+
+		this.addrEtherBalance = addr => { return this.web3.eth.getBalance(addr); }
+		this.byte32ToAddress = (b) => { return this.web3.toAddress(this.web3.toHex(this.web3.toBigNumber(String(b)))); };
+	        this.byte32ToDecimal = (b) => { return this.web3.toDecimal(this.web3.toBigNumber(String(b))); };
+        	this.byte32ToBigNumber = (b) => { return this.web3.toBigNumber(String(b)); };
+
+		this.unlockViaIPC = passwd => addr =>
+	        {
+	                const __unlockToExec = (resolve, reject) => {
+	                        this.ipc3.personal.unlockAccount(addr, passwd, 120, (error, result) => {
+	                                if (error) {
+	                                        reject(error);
+	                                } else if (result != true) {
+	                                        setTimeout( () => __unlockToExec(resolve, reject), 500 );
+	                                } else {
+	                                        resolve(true);
+	                                }
+	                        });
+	                };
+	
+	                return new Promise(__unlockToExec);
+	        }
+
+		this.configured = () => 
+		{
+                	if (this.networkID === 'NO_CONFIG') {
+                        	return false;
+                	} else {
+                        	return true;
+                	}
+        	}
+
+		this.closeIPC = () =>
+	        {
+	                const __closeIPC = (resolve, reject) => {
+	                        try {
+	                                if (
+	                                    this.ipc3 instanceof Web3
+	                                 && this.ipc3.net._requestManager.provider instanceof Web3.providers.IpcProvider
+	                                ) {
+	                                        console.log("Shutdown ipc connection!!!");
+	                                        resolve(this.ipc3.net._requestManager.provider.connection.destroy());
+	                                } else if (this.ipc3 instanceof Web3) {
+	                                        console.log("Still pending to shutdown ipc connection!!!");
+	                                        setTimeout( () => __closeIPC(resolve, reject), 500 );
+	                                }
+	                        } catch (err) {
+	                                console.log("Uh Oh...... (closeIPC)" + err);
+	                                reject(false);
+	                        }
+	                };
+	
+	                return new Promise(__closeIPC);
+	        }
+
+		this.connected = () => 
+		{
+	                if (!this.configured()) return false;
+	
+	                let live;
+	                try {
+	                        live = this.web3 instanceof Web3 && this.web3.net._requestManager.provider instanceof Web3.providers.HttpProvider;
+	                        this.web3.net.listening
+	                } catch(err) {
+	                        live = false;
+	                }
+	
+	                return live;
+	        }
+
+		this.getReceipt = (txHash, interval) =>
+	        {
+	                if (txHash === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+	                        return Promise.resolve({transactionHash: txHash});
+	                }
+	
+	                const transactionReceiptAsync = (resolve, reject) => {
+	                        this.web3.eth.getTransactionReceipt(txHash, (error, receipt) => {
+	                                if (error) {
+	                                        reject(error);
+	                                } else if (receipt == null) {
+	                                        setTimeout( () => transactionReceiptAsync(resolve, reject), interval ? interval : 500);
+	                                } else {
+	                                        resolve(receipt);
+	                                }
+	                        });
+	                };
+	
+	                if (Array.isArray(txHash)) {
+	                        return Promise.all( txHash.map(oneTxHash => this.getReceipt(oneTxHash, interval)) );
+	                } else if (typeof txHash === "string") {
+	                        return new Promise(transactionReceiptAsync);
+	                } else {
+	                        throw new Error("Invalid Type: " + txHash);
+	                }
+	        }
+
+		this.gasCostEst = (addr, txObj) =>
+	        {
+	                if (
+	                        txObj.hasOwnProperty('gas') == false
+	                     || txObj.hasOwnProperty('gasPrice') == false
+	                ) { throw new Error("txObj does not contain gas-related information"); }
+	
+	                let gasBN = this.web3.toBigNumber(txObj.gas);
+	                let gasPriceBN = this.web3.toBigNumber(txObj.gasPrice);
+	                let gasCost = gasBN.mul(gasPriceBN);
+	
+	                return gasCost;
+	        }
+
+		this.version = '1.0'; // API version
+                this.jobQ = {}; // Should use setter / getter
+                this.rcdQ = {}; // Should use setter / getter
+		
+	  			
 	}
 }
 
