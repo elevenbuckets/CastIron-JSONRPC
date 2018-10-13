@@ -88,6 +88,7 @@ class BladeIron {
 	                      })
 	                      .catch( (err) =>
 	                      {
+				 //console.log(err);
 	                         return false;
 	                      });
 	        }
@@ -764,6 +765,11 @@ const biapi = new BladeIron();
 // create a server
 const server = jayson.server(
     {
+	connected()
+	{
+		return Promise.resolve(biapi.connected());
+	},
+
         initialize(obj) 
 	{ 
 		biapi.setup(obj); 
@@ -778,13 +784,13 @@ const server = jayson.server(
 
 	unlock(ps)
 	{
-		biapi.password(ps);
-		return Promise.resolve(biapi.validPass());
+		biapi.password(ps[0]);
+		return biapi.validPass();
 	},
 
 	hasPass()
 	{
-		return Promise.resolve(biapi.validPass());
+		return biapi.validPass();
 	},
 
 	sendTx(tokenSymbol, toAddress, amount, gasAmount)
