@@ -782,9 +782,10 @@ const server = jayson.server(
 		return Promise.resolve(biapi.allAccounts()); 
 	},
 
-	unlock(ps)
+	unlock(args) // unlock(ps)
 	{
-		biapi.password(ps[0]);
+		let ps = args[0];
+		biapi.password(ps);
 		return biapi.validPass();
 	},
 
@@ -793,27 +794,47 @@ const server = jayson.server(
 		return biapi.validPass();
 	},
 
-	sendTx(tokenSymbol, toAddress, amount, gasAmount)
+	sendTx(args) // sendTx(tokenSymbol, toAddress, amount, gasAmount)
 	{
 		let jobObj = {};
+		let tokenSymbol = args[0];
+		let toAddress   = args[1];
+		let amount      = args[2];
+		let gasAmount   = args[3];
 
 		try {
 			jobObj = biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount);
-			return biapi.processJobs([jobObj]);
+			return biapi.processJobs([jobObj]); // single job, thus single element in list
 		} catch (err) {
 			return reject(server.error(404, err));
 		}
 	},
 	
-	enqueueTx(tokenSymbol, toAddress, amount, gasAmount) 
+	enqueueTx(args) // enqueueTx(tokenSymbol, toAddress, amount, gasAmount) 
 	{
-		return Promise.resolve(biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount));	
+		let tokenSymbol = args[0];
+		let toAddress   = args[1];
+		let amount      = args[2];
+		let gasAmount   = args[3];
+
+		try {
+			return Promise.resolve(biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount));
+		} catch (err) {
+			return reject(server.error(404, err));
+		}
 	},
 
-	newApp(appSymbol, version, contract, abiPath, conditions, address = null)
+	newApp(args) // newApp(appSymbol, version, contract, abiPath, conditions, address = null)
 	{
+		let appSymbol = args[0];
+		let version   = args[1];
+		let contract  = args[2];
+		let abiPath   = args[3];
+		let conditions = args[4];
+
 		try {
-			if (address !== null) {
+			if (args.length === 6 && args[5] != null) {
+				let address = args[5];
 				return Promise.resolve(biapi.newApp(appSymbol)(version, contract, abiPath, conditions, address));
 			} else {
 				return Promise.resolve(biapi.newApp(appSymbol)(version, contract, abiPath, conditions));
@@ -823,9 +844,21 @@ const server = jayson.server(
 		}	
 	},
 
-	enqueueTk(type, contract, call, args, amount, gasAmount, tkObj)
+	enqueueTk(args) // enqueueTk(type, contract, call, appArgs, amount, gasAmount, tkObj)
 	{
-		return Promise.resolve(biapi.enqueueTk(type, contract, call, args)(amount, gasAmount, tkObj));
+		let type = args[0];
+		let contract = args[1];
+		let call = args[2];
+		let appArgs = args[3];
+		let amount = args[4];
+		let gasAmount = args[5];
+		let tkObj = args[6];
+
+		try {
+			return Promise.resolve(biapi.enqueueTk(type, contract, call, appArgs)(amount, gasAmount, tkObj));
+		} catch (err) {
+			return reject(server.error(404, err));
+		}
 	},
 
 	hotGroups(tokenList)
@@ -837,9 +870,15 @@ const server = jayson.server(
 		}
 	},
 
-	setAccount(address)
+	setAccount(args) // setAccount(address)
 	{
-		return Promise.resolve(biapi.setAccount(address));
+		let address = args[0];
+
+		try {
+			return Promise.resolve(biapi.setAccount(address));
+		} catch(err) {
+			return reject(server.error(404, err));
+		}
 	},
 
 	processJobs(jobList)
@@ -851,14 +890,26 @@ const server = jayson.server(
 		}
 	},
 
-	addrEtherBalance(address)
+	addrEtherBalance(args) // addrEtherBalance(address)
 	{
-		return Promise.resolve(biapi.addrEtherBalance(address));
+		let address = args[0];
+		try {
+			return Promise.resolve(biapi.addrEtherBalance(address));
+		} catch(err) {
+			return reject(server.error(404, err));
+		}
 	},
 
-	addrTokenBalance(tokenSymbol, address)
+	addrTokenBalance(args) // addrTokenBalance(tokenSymbol, address)
 	{
-		return Promise.resolve(biapi.addrTokenBalance(tokenSymbol)(address));
+		let tokenSymbol = args[0];
+		let address     = args[1];
+
+		try {
+			return Promise.resolve(biapi.addrTokenBalance(tokenSymbol)(address));
+		} catch (err) {
+			return reject(server.error(404, err));
+		}
 	}
     }
 );
