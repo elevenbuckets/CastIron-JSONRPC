@@ -9,6 +9,9 @@ const fs     = require('fs');
 const uuid  = require('uuid/v4');
 const BigNumber = require('bignumber.js');
 const fetch     = require('node-fetch');
+const ipfsctl = require('ipfsd-ctl');
+const ipfsAPI = require('ipfs-api');
+const { execFileSync } = require('child_process');
 
 // account manager
 const bcup  = require('buttercup');
@@ -27,7 +30,17 @@ const EIP20ABI = require( __dirname + '/ABI/StandardToken.json' );
 // token list (taken from https://balanceof.me)
 const Tokens = require( __dirname + '/configs/Tokens.json' );
 
+// Electron asar path fix
+const __asar_unpacked = (inPath) => {
+        const _fs = process.versions.electron
+                ? require('original-fs')
+                : fs
 
+        let outPath = inPath.replace(/app.asar/, 'app.asar.unpacked');
+        return _fs.existsSync(outPath) ? outPath : inPath;
+}
+
+// BladeIron
 class BladeIron {
 	constructor() 
 	{
@@ -760,7 +773,168 @@ class BladeIron {
 	}
 }
 
+//IPFS_Blade
+class IPFS_Blade {
+	constructor() {
+		// local IPNS cache
+		this.localCache = {};
+		this.resolveTimer;
+
+		this.init = (cfgobj) => {
+			try {
+                        	this.cfsrc = cfgobj;
+                        	this.options = {args: ['--enable-pubsub-experiment'], disposable: false, init: true, repoPath: this.cfsrc.repoPathGo};
+
+                        	if (typeof(this.cfsrc.ipfsBinary) === 'undefined') {
+                                	let goipfspath = path.dirname(path.dirname(require.resolve('go-ipfs-dep')));
+                                	this.cfsrc.ipfsBinary = __asar_unpacked(path.join(goipfspath, 'go-ipfs', 'ipfs'));
+                        	}
+                	} catch (err) {
+                        	let goipfspath = path.dirname(path.dirname(require.resolve('go-ipfs-dep')));
+                        	this.cfsrc = {
+                                	repoPathGo: '/tmp/ipfs_tmp',
+                                	lockerpathgo: '/tmp/.locker_go',
+                                	ipfsBinary: __asar_unpacked(path.join(goipfspath, 'go-ipfs', 'ipfs'))
+                        	};
+                        	this.options = {args: ['--enable-pubsub-experiment'], disposable: true, init: true, repoPath: this.cfsrc.repoPathGo};
+                	}
+
+                	if (this.options.disposable === false && fs.existsSync(this.cfsrc.lockerpathgo)) this.options.init = false;
+                	if (this.options.disposable === false && this.options.init) {
+                        	console.log(`Initializing IPFS repo at ${this.cfsrc.repoPathGo} ...`);
+                        	execFileSync(this.cfsrc.ipfsBinary, ['init'], {env: {IPFS_PATH: this.cfsrc.repoPathGo}});
+                	}
+		}
+
+		this.start = () => 
+		{
+	                this.ipfsd = ipfsctl.create({type: 'go', exec: this.cfsrc.ipfsBinary});
+	
+	                const __spawn = (resolve, reject) => {
+	                        this.ipfsd.spawn(this.options, (err, ipfsFactory) => {
+	                                if (err) return reject(err);
+	
+	                                if (!this.options.disposable) fs.writeFileSync(this.cfsrc.lockerpathgo, JSON.stringify(this.cfsrc,0,2));
+	
+	                                ipfsFactory.start(this.options.args, (err) => {
+	                                        if (err) return reject(err);
+	
+	                                        process.on('SIGINT', () => {
+	                                                if (this.controller.started) {
+	                                                        console.log("\tCtrl+C or SIGINT detected ... stopping...");
+	                                                        this.stop().then(() => {
+	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'api'));
+	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'repo.lock'));
+	                                                        });
+	                                                }
+	                                        });
+	
+	                                        process.on('exit', () => {
+	                                                if (this.controller.started) {
+	                                                        this.stop().then(() => {
+	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'api'));
+	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'repo.lock'));
+	                                                        });
+	                                                }
+	                                        });
+	
+	                                        this.controller = ipfsFactory;
+	                                        let apiAddr = ipfsFactory.api.apiHost;
+	                                        let apiPort = ipfsFactory.api.apiPort;
+	                                        this.ipfsAPI = ipfsAPI(apiAddr, apiPort, {protocol: 'http'})
+	
+	                                        console.log("repoPath: " + ipfsFactory.repoPath)
+	
+						this.ready = true;
+	                                        resolve(this.ipfsAPI);
+	                                })
+	                        });
+	                }
+	
+	                return new Promise(__spawn);
+	        }
+
+		this.stop = (graceTime = 31500) => 
+		{
+	                const __stop = (resolve, reject) => {
+	                        this.controller.stop(graceTime, (err) => {
+	                                if (err) return reject(false);
+					this.ready = false;
+	                                resolve(true);
+	                        })
+	                }
+	
+	                return new Promise(__stop);
+	        }
+
+		// Class methods in constructor to skip babel class transform
+		this.pullFile = (ipfshash, outpath) => {
+			return this.read(ipfshash).then((r) => {
+				fs.writeFileSync(outpath, r);
+				return true;
+			})
+		}
+
+		this.ping = (nodehash) => { return this.ipfsAPI.ping(nodehash, {count: 3}).then((r) => { return {cmd: r[0].text, count: 3, results: r[4]}}) }
+		this.getConfigs = () => { return this.ipfsAPI.config.get().then((b) => { return JSON.parse(b.toString())}); }
+		this.setConfigs = (entry, value) => { 
+			return this.ipfsAPI.config.set(entry, value).then( () => { 
+				return this.ipfsAPI.config.get(entry).then((r) => { return { [entry]: r } });
+			}); 
+		}
+
+		this.put = (fpath) => 
+		{
+                	let buff = fs.readFileSync(fpath);
+                	return this.ipfsAPI.files.add(buff); // return a promise
+        	}
+
+        	this.lspin = () => { return this.ipfsAPI.pin.ls(); }
+        	this.read = (hash) => { return this.ipfsAPI.files.cat('/ipfs/' + hash); }
+        	this.readPath = (ipfsPath) => { return this.ipfsAPI.files.cat(ipfsPath); }
+
+        	this.publish = (contentHash, key=null) => {
+                	let options = {};
+
+                	if (key !== null) options['key'] = key;
+                	return this.ipfsAPI.name.publish(contentHash, options);
+        	}
+
+		this.resolve = (ipnsHash) => {
+		        const __resolve_background = () => {
+				return setTimeout(() => {
+					let result = this.ipfsAPI.name.resolve(ipnsHash);
+					this.localCache[ipnsHash] = {seen: Date.now(), result};
+				});
+			}
+
+			if (ipnsHash in this.localCache) {
+				console.log(`DEBUG: using cache`);
+				if (Date.now() - this.localCache[ipnsHash].seen >= 30000) {
+					console.log(`DEBUG: cache will be refreshed`);
+					this.resolveTimer = __resolve_background();
+				}
+				return this.localCache[ipnsHash].result;
+			} else {
+				console.log(`DEBUG: initalizing new query ...`);
+				let result = this.ipfsAPI.name.resolve(ipnsHash);
+				this.localCache[ipnsHash] = {seen: Date.now(), result};
+				return result;
+			}
+		}
+
+		this.bootnodes = () => { return this.ipfsAPI.bootstrap.list(); }
+		this.pullIPNS = (ipnsHash) => {
+			return this.resolve(ipnsHash)
+				.then((ipfshash) => { return this.readPath(ipfshash) })
+				.then((r) => { return JSON.parse(r.toString()); });
+		}
+		this.myid = () => { return this.ipfsAPI.id() }
+	}
+}
+
 const biapi = new BladeIron();
+const ipfsi = new IPFS_Blade();
 
 // create a server
 const server = jayson.server(
@@ -922,6 +1096,98 @@ const server = jayson.server(
 			console.log(err);
 			return Promise.reject(server.error(404, err));
 		}
+	},
+
+	ipfs_connected()
+        {
+		return Promise.resolve(ipfsi.ready);
+	},
+
+	ipfs_initialize(obj)
+	{
+		ipfsi.init(obj);
+		return ipfsi.start();		
+	},
+
+	ipfs_pullFile(args) // ipfs_pullFile(inhash, outpath)
+	{
+		let inhash = args[0];
+		let outpath = args[1];
+		try {
+			return ipfsi.pullFile(inhash, outpath);
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		}
+	},
+
+	ipfs_put(args) // ipfs_put(fpath)
+	{
+		let fpath = args[0];
+		try {
+			return ipfsi.put(fpath);
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		}
+	},
+
+	ipfs_read(args) // ipfs_read(hash)
+	{
+		let hash = args[0];
+		try {
+			return ipfsi.read(hash);
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		}
+	},
+
+	ipfs_readPath(args) // ipfs_readPath(ipfspath)
+	{
+		let ipfspath = args[0];
+		try {
+			return ipfsi.readPath(ipfspath);
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		}
+	},
+
+	ipfs_publish(args) // ipfs_resolve(contentHash, key = null)
+	{
+		let hash = args[0];
+		try {
+			if (args.length === 2 && args[1] != null) {
+				let key = args[1];
+				return ipfsi.publish(hash, key);
+			} else if (args.length === 1) {
+				return ipfsi.publish(hash);
+			}
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		}
+	},
+
+	ipfs_resolve(args) // ipfs_resolve(ipnsHash)
+	{
+		let ipnsHash = args[0];
+		try {
+			return ipfsi.resolve(ipnsHash);
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		}
+	},
+
+	ipfs_myid()
+	{
+		return ipfsi.myid();
+	},
+
+	ipfs_pullIPNS(args) // ipfs_pullIPNS(ipnsHash)
+	{
+		let ipnsHash = args[0];
+		try {
+			return ipfsi.pullIPNS(ipnsHash);
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		} 
 	}
     }
 );
