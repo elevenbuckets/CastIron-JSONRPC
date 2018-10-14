@@ -806,7 +806,7 @@ const server = jayson.server(
 			jobObj = biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount);
 			return biapi.processJobs([jobObj]); // single job, thus single element in list
 		} catch (err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 	
@@ -820,7 +820,7 @@ const server = jayson.server(
 		try {
 			return Promise.resolve(biapi.enqueueTx(tokenSymbol)(toAddress, amount, gasAmount));
 		} catch (err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
@@ -840,7 +840,7 @@ const server = jayson.server(
 				return Promise.resolve(biapi.newApp(appSymbol)(version, contract, abiPath, conditions));
 			}
 		} catch (err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}	
 	},
 
@@ -857,7 +857,7 @@ const server = jayson.server(
 		try {
 			return Promise.resolve(biapi.enqueueTk(type, contract, call, appArgs)(amount, gasAmount, tkObj));
 		} catch (err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
@@ -866,7 +866,7 @@ const server = jayson.server(
 		try {
 			return Promise.resolve(biapi.hotGroups(tokenList));
 		} catch(err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
@@ -877,7 +877,7 @@ const server = jayson.server(
 		try {
 			return Promise.resolve(biapi.setAccount(address));
 		} catch(err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
@@ -886,7 +886,7 @@ const server = jayson.server(
 		try {
 			return biapi.processJobs(jobList);
 		} catch (err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
@@ -896,7 +896,7 @@ const server = jayson.server(
 		try {
 			return Promise.resolve(biapi.addrEtherBalance(address));
 		} catch(err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
@@ -908,17 +908,19 @@ const server = jayson.server(
 		try {
 			return Promise.resolve(biapi.addrTokenBalance(tokenSymbol)(address));
 		} catch (err) {
-			return reject(server.error(404, err));
+			return Promise.reject(server.error(404, err));
 		}
 	},
 
-	getRecepts(args) // getRecepts(Q)
+	getReceipts(args) // getRecepts(Q)
         {
+		let Q = args[0];
 		let txhashes = biapi.rcdQ[Q].map((r) => { return r.tx });
 		try {
-			return biapi.getRecepts(txhashes);
+			return biapi.getReceipt(txhashes);
 		} catch (err) {
-			return reject(server.error(404, err));
+			console.log(err);
+			return Promise.reject(server.error(404, err));
 		}
 	}
     }
