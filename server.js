@@ -910,6 +910,16 @@ const server = jayson.server(
 		} catch (err) {
 			return reject(server.error(404, err));
 		}
+	},
+
+	getRecepts(args) // getRecepts(Q)
+        {
+		let txhashes = biapi.rcdQ[Q].map((r) => { return r.tx });
+		try {
+			return biapi.getRecepts(txhashes);
+		} catch (err) {
+			return reject(server.error(404, err));
+		}
 	}
     }
 );
