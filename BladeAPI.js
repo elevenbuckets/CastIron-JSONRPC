@@ -33,6 +33,7 @@ class BladeAPI {
 		this.ready = false;
 		this.client;
 		this.ABI = {};
+		this.cfgobj = {}; // should not needed in the future
 
 		this.connectRPC = (port) => 
 		{
@@ -89,7 +90,7 @@ class BladeAPI {
 			// special case here as master awaker. this.init() should not need to pass in master password 
 			return this.client.request('connected', [])
 		    		.then((rc) => {
-		        		if (rc.result !== true) return this.client.request('initialize', cfgobj);
+		        		if (rc.result !== true) return this.client.request('initialize', this.cfgobj);
 		        		console.log("server already initialized");
 		        		return {result: true};
 		    		})
@@ -133,7 +134,7 @@ class BladeAPI {
                         let gasAmount = 250000; // should have dedicated request for gas estimation
 
                         let tkObj = {};
-                        __args.map((i,j) => { tkObj = { ...tkObj, ['arg'+j]: i } );
+                        __args.map((i,j) => { tkObj = { ...tkObj, ['arg'+j]: i } });
                         let args = Object.keys(tkObj).sort();
 
                         return this.client.request('enqueueTk', [this.appName, ctrName, callName, args, amount, gasAmount, tkObj])
