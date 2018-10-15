@@ -756,6 +756,7 @@ class BladeIron {
 	                }
 	
 	                this.CUE[appSymbol][contract] = abi.at(addr);
+			this.CUE[appSymbol]['ABI'][contract] = artifact.abi;
 	
 	                // conditions is objects of {'condition_name1': condPath1, 'condition_name2': condPath2 ...}
 	                let allConditions = {};
@@ -1016,6 +1017,20 @@ const server = jayson.server(
 		} catch (err) {
 			return Promise.reject(server.error(404, err));
 		}	
+	},
+
+	call(callObj) // callObj example: {appName: 'appName', ctrName: 'ctrName', callName: 'callName', args: [arg01, arg02 ...]}
+	{
+		let abiObj = null;
+		let appName = callObj.appName;
+		let ctrName = callObj.ctrName;
+		let callName = callObj.callName;
+		try {
+			abiObj = biapi.CUE[appName].ABI[ctrName].filter((i) => { return (i.name === callName && i.constant === true) } );
+			if (abiObj.input.length === callObj.args.length) return Promise.resolve(biapi.CUE[appName][ctrName][callName](...callObj.args));
+		} catch(err) {
+			return Promise.reject(server.error(501, 'unsupported constant call'));
+		}
 	},
 
 	enqueueTk(args) // enqueueTk(type, contract, call, appArgs, amount, gasAmount, tkObj)
