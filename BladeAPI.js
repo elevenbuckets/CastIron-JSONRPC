@@ -118,7 +118,6 @@ class BladeAPI {
 					
 					return Promise.all(reqs);
 				})
-				.then((rc) => { this.ready = true; }); // huh?
 		}
 
 		// This should eventually become standardize, base class function that can handle all kinds of calls 
