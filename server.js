@@ -1209,7 +1209,7 @@ const httpServ = server.http();
 
 process.on('SIGINT', () => {
    console.log("\tRPC Server stopping ...");
-   if (ipfsi.controller.started) {
+   if (typeof(ipfsi.controller) !== 'undefined' && ipfsi.controller.started) {
 	console.log("\tIPFS Server stopping ...");
 	ipfsi.stop().then(() => {
 	        fs.unlinkSync(path.join(ipfsi.cfsrc.repoPathGo, 'api'));
