@@ -129,6 +129,11 @@ class BladeAPI {
 				})
 		}
 
+                this.call = (ctrName = this.appName) => (callName) => (...args) =>
+                {
+                        return this.client.request('call', {appName: this.appName, ctrName, callName, args})
+                }
+
 		// This should eventually become standardize, base class function that can handle all kinds of calls 
                 // it should learn more from ABI about possible calls. Right now we only have one contract in the app,
                 // so the input argument can ignore the ctrName...
