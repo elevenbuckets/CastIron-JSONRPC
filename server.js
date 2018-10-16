@@ -735,7 +735,7 @@ class BladeIron {
 	                let artifact = JSON.parse(buffer.toString());
 	                artifact.contract_name = contract;
 	
-	                if (typeof(this.CUE[appSymbol]) === 'undefined') this.CUE[appSymbol] = {};
+	                if (typeof(this.CUE[appSymbol]) === 'undefined') this.CUE[appSymbol] = { ABI: {} };
 	
 	                if (address === '0x') {
 	                        this.CUE[appSymbol][contract] = undefined;
@@ -756,15 +756,15 @@ class BladeIron {
 	                }
 	
 	                this.CUE[appSymbol][contract] = abi.at(addr);
-			this.CUE[appSymbol]['ABI'][contract] = artifact.abi;
-	
+			this.CUE[appSymbol].ABI[contract] = artifact.abi;
+
+			// console.log(this.CUE[appSymbol].ABI[contract]); console.log('---'); console.log(conditions);	// DEBUG
 	                // conditions is objects of {'condition_name1': condPath1, 'condition_name2': condPath2 ...}
 	                let allConditions = {};
 	
 	                Object.keys(conditions).map((cond) =>
 	                {
-	                        let condbuf = fs.readFileSync(conditions[cond]);
-	                        let thiscond = eval(JSON.parse(condbuf.toString()));
+	                        let thiscond = require(conditions[cond]);
 	                        allConditions = { ...allConditions, ...thiscond };
 	                });
 	
@@ -1015,6 +1015,7 @@ const server = jayson.server(
 				return Promise.resolve(biapi.newApp(appSymbol)(version, contract, abiPath, conditions));
 			}
 		} catch (err) {
+			console.log(err);
 			return Promise.reject(server.error(404, err));
 		}	
 	},
@@ -1027,8 +1028,21 @@ const server = jayson.server(
 		let callName = callObj.callName;
 		try {
 			abiObj = biapi.CUE[appName].ABI[ctrName].filter((i) => { return (i.name === callName && i.constant === true) } );
-			if (abiObj.input.length === callObj.args.length) return Promise.resolve(biapi.CUE[appName][ctrName][callName](...callObj.args));
+			
+			if (abiObj.length === 1 && abiObj[0].inputs.length === callObj.args.length) {
+				let __call = (resolve, reject) => {
+					biapi.CUE[appName][ctrName][callName](...callObj.args, (err, result) => {
+						if (err) return reject(err);
+						resolve(result);
+					})
+				}
+				
+				return new Promise(__call);
+			} else {
+				throw "Wrong function or function arguments";
+			}
 		} catch(err) {
+			console.log(err);
 			return Promise.reject(server.error(501, 'unsupported constant call'));
 		}
 	},
