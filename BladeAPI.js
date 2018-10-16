@@ -44,7 +44,7 @@ class BladeAPI {
 		{
 			let artifactPath = path.join(this.configs.artifactDir, ctrName + '.json');
 			let Artifact = JSON.parse(fs.readFileSync(artifactPath).toString()); // truffle artifact
-			this.ABI[ctrName] = this.Artifact.abi;
+			this.ABI[ctrName] = Artifact.abi;
                 	//let contractAddress = Artifact.networks[this.networkID].address;
 
 			return [this.appName, this.configs.version, ctrName, path.join(this.configs.artifactDir, ctrName + '.json')]
@@ -82,7 +82,7 @@ class BladeAPI {
 				condition = { [condType]: path.join(this.configs.conditionDir, this.appName, ctrName, condType + '.js') }; 
 			}
 
-			return [...output, ...condition];
+			return [...output, condition];
 		}
 
 		this.init = (masterpass) => 
