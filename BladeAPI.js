@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const rpc = require('jayson/promise');
 const web3 = require('web3');
-const w = new web3();
+const w = new web3(); // for util functions only... :P
 
 // What should options look like:
 /* 
@@ -134,9 +134,7 @@ class BladeAPI {
                         return this.client.request('call', {appName: this.appName, ctrName, callName, args})
                 }
 
-		// This should eventually become standardize, base class function that can handle all kinds of calls 
-                // it should learn more from ABI about possible calls. Right now we only have one contract in the app,
-                // so the input argument can ignore the ctrName...
+                // sendTk learns about the given contract function from ABI. 
                 //
                 // Usage:
                 //
@@ -154,9 +152,45 @@ class BladeAPI {
                                    .then((rc) => { let jobObj = rc.result; return this.client.request('processJobs', [jobObj]); });
                 }
 
-                this.bytes32ToAscii = (b) => {
+                this.bytes32ToAscii = (b) => 
+		{
                         return this.toAscii(this.toHex(this.toBigNumber(String(b))))
                 }
+
+		/* 
+ 		 * IPFS-related calls, wrapped from the low-level jsonrpc calls
+ 		 * 
+ 		 * Note: multi-ipfs-keys support will be added soon. 
+ 		 *
+ 		 */
+
+		this.ipfsId = () => 
+		{
+			return this.client.request('ipfs_myid', []);
+		}
+
+		this.ipfsPut = (filepath) => 
+		{
+			return this.client.request('ipfs_put', [filepath]);
+		}
+
+		this.ipfsRead = (ipfsHash) =>
+		{
+			return this.client.request('ipfs_read', [ipfsHash]);
+		}
+
+		this.ipnsPublish = (ipfsHash) =>
+		{
+			// rpc call 'ipfs_publish' *actually* supports multiple ipfs keys
+			// but BladeIron still needs some ipfskey management functions 
+			// before exposing it.
+			return this.client.request('ipfs_publish', [ipfsHash]);
+		}
+
+		this.pullIPNS = (ipnsHash) =>
+		{
+			return this.client.request('ipfs_pullIPNS', [ipnsHash]);
+		}
 	}
 }
 
