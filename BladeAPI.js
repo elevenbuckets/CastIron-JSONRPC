@@ -166,12 +166,14 @@ class BladeAPI {
 
 		this.ipfsId = () => 
 		{
-			return this.client.request('ipfs_myid', []);
+			return this.client.request('ipfs_myid', [])
+				   .then((rc) => { return rc.result });
 		}
 
 		this.ipfsPut = (filepath) => 
 		{
-			return this.client.request('ipfs_put', [filepath]);
+			return this.client.request('ipfs_put', [filepath])
+				   .then((rc) => { return rc.result });
 		}
 
 		this.ipfsRead = (ipfsHash) =>
@@ -185,13 +187,21 @@ class BladeAPI {
 			// rpc call 'ipfs_publish' *actually* supports multiple ipfs keys
 			// but BladeIron still needs some ipfskey management functions 
 			// before exposing it.
-			return this.client.request('ipfs_publish', [ipfsHash]);
+			return this.client.request('ipfs_publish', [ipfsHash])
+				   .then((rc) => { return rc.result });
 		}
 
 		this.pullIPNS = (ipnsHash) =>
 		{
-			return this.client.request('ipfs_pullIPNS', [ipnsHash]);
+			return this.client.request('ipfs_pullIPNS', [ipnsHash])
+				   .then((rc) => { return rc.result });
 		}
+
+		this.allAccounts = () =>
+                {
+                        return this.client.request('accounts', [])
+                                   .then((rc) => { return rc.result });
+                }
 	}
 }
 
