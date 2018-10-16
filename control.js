@@ -47,7 +47,10 @@ const replEvalPromise = (cmd,ctx,filename,cb) => {
 // REPL main function
 const terminal = (biapi) => {
   return biapi.init('masterpass') 
-        .then((rc) => { if (rc) return ASCII_Art('DLogs  By  ElevenBuckets') })
+        .then((rc) => { 
+		 console.log(JSON.stringify(rc,0,2));
+		 return ASCII_Art('DLogs  By  ElevenBuckets') 
+	})
         .then((art) => {
           console.log(art + "\n");
 
