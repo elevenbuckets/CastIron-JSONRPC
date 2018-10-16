@@ -6,9 +6,6 @@ const rpc = require('jayson/promise');
 const web3 = require('web3');
 const w = new web3();
 
-// special case, should no longer be needed when UI is migrated to BladeIron
-const cfgobj = require('/home/jasonlin/.rinkeby/config.json');
-
 // What should options look like:
 /* 
  * {
@@ -33,7 +30,9 @@ class BladeAPI {
 		this.ready = false;
 		this.client;
 		this.ABI = {};
-		this.cfgobj = {}; // should not needed in the future
+
+		// special case, should not be needed when UI is migrated to BladeIron
+		this.cfgObjs = { geth: {}, ipfs: {} };
 
 		this.connectRPC = (port) => 
 		{
@@ -90,7 +89,7 @@ class BladeAPI {
 			// special case here as master awaker. this.init() should not need to pass in master password 
 			return this.client.request('connected', [])
 		    		.then((rc) => {
-		        		if (rc.result !== true) return this.client.request('initialize', this.cfgobj);
+		        		if (rc.result !== true) return this.client.request('initialize', this.cfgObjs.geth);
 		        		console.log("server already initialized");
 		        		return {result: true};
 		    		})
@@ -117,6 +116,16 @@ class BladeAPI {
 					});
 					
 					return Promise.all(reqs);
+				})
+				.then((rc) => {
+					console.log(rc);
+					return this.client.request('ipfs_connected', []);
+				})
+				.then((rc) => {
+					console.log('IPFS Init:'); console.log(rc);
+					if (!rc.result) return this.client.request('ipfs_initialize', this.cfgObjs.ipfs);
+					console.log('IPFS already initialized ...');
+					return {result: true};
 				})
 		}
 

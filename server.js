@@ -739,7 +739,7 @@ class BladeIron {
 	
 	                if (address === '0x') {
 	                        this.CUE[appSymbol][contract] = undefined;
-	                        return;
+	                        return { [appSymbol]: version, 'Ready': false };
 	                }
 	
 	                // appSymbol contains the string which becomes the 'type' keywords of the app
@@ -770,6 +770,8 @@ class BladeIron {
 	
 	                // loading conditions. there names needs to follow CastIron conventions to be recognized by queue, otherwise job will fail.
 	                Object.keys(allConditions).map((f) => { if(typeof(this[f]) === 'undefined') this[f] = allConditions[f] });
+
+			return { [appSymbol]: version, 'Ready': true };
 	        }
 	}
 }
@@ -780,6 +782,7 @@ class IPFS_Blade {
 		// local IPNS cache
 		this.localCache = {};
 		this.resolveTimer;
+		this.ready = false
 
 		this.init = (cfgobj) => {
 			try {

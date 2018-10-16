@@ -4,23 +4,20 @@ const repl = require('repl');
 const figlet = require('figlet');
 const BladeIronClient = require('./BladeAPI.js');
 
-let options = 
-{
+const biapi = new BladeIronClient(
+    {
        "appName": "DLogs",
        "artifactDir": "/home/jasonlin/Proj/Playground/dlogs/build/contracts",
        "conditionDir": "/home/jasonlin/Proj/Playground/ethsf_dlogs/conditions",
        "contracts": [{ "ctrName": "DLogs", "conditions": ["Sanity"] }],
        "networkID": 4,
        "version": "1.0"	
-}
+    }
+);
 
-let cfgobj = require('/home/jasonlin/.rinkeby/config.json');
-let cfgobj_ipfs = require('/home/jasonlin/.rinkeby/ipfsserv.json'); 
-
-const biapi = new BladeIronClient(options);
-
-// temporary solution
-biapi.cfgobj = cfgobj;
+// Temporary solution before UI is migrated...
+biapi.cfgObjs.geth = require('/home/jasonlin/.rinkeby/config.json');
+biapi.cfgObjs.ipfs = require('/home/jasonlin/.rinkeby/ipfsserv.json');
 biapi.connectRPC(3000);
 
 // ASCII Art!!!
@@ -47,9 +44,8 @@ const replEvalPromise = (cmd,ctx,filename,cb) => {
 // REPL main function
 const terminal = (biapi) => {
   return biapi.init('masterpass') 
-        .then((rc) => { 
-		 console.log(JSON.stringify(rc,0,2));
-		 return ASCII_Art('DLogs  By  ElevenBuckets') 
+        .then((rc) => {
+		 if (rc.result) return ASCII_Art('BladeIron  DEV Console')
 	})
         .then((art) => {
           console.log(art + "\n");
