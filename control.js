@@ -18,7 +18,7 @@ const biapi = new BladeIronClient(
 // Temporary solution before UI is migrated...
 biapi.cfgObjs.geth = require('/home/jasonlin/.rinkeby/config.json');
 biapi.cfgObjs.ipfs = require('/home/jasonlin/.rinkeby/ipfsserv.json');
-biapi.connectRPC(3000);
+biapi.connectRPC(3000)();
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {

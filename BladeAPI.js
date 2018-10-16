@@ -34,9 +34,9 @@ class BladeAPI {
 		// special case, should not be needed when UI is migrated to BladeIron
 		this.cfgObjs = { geth: {}, ipfs: {} };
 
-		this.connectRPC = (port) => 
+		this.connectRPC = (port) => (host = '127.0.0.1') => 
 		{
-			this.client = rpc.client.http({port});
+			this.client = rpc.client.http({host, port});
 		}
 
 		this._getABI = (ctrName = this.appName) =>
