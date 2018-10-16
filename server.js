@@ -1201,6 +1201,15 @@ const server = jayson.server(
 		} catch(err) {
 			return Promise.reject(server.error(404, err));
 		} 
+	},
+
+	ipfs_lspin()
+	{
+		try {
+			return ipfsi.lspin();
+		} catch(err) {
+			return Promise.reject(server.error(404, err));
+		} 
 	}
     }
 );

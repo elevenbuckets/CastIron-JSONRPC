@@ -176,7 +176,8 @@ class BladeAPI {
 
 		this.ipfsRead = (ipfsHash) =>
 		{
-			return this.client.request('ipfs_read', [ipfsHash]);
+			return this.client.request('ipfs_read', [ipfsHash])
+				   .then((rc) => { return Buffer(rc.result).toString() });
 		}
 
 		this.ipnsPublish = (ipfsHash) =>
