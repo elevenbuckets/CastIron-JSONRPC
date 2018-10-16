@@ -822,26 +822,7 @@ class IPFS_Blade {
 	
 	                                ipfsFactory.start(this.options.args, (err) => {
 	                                        if (err) return reject(err);
-	
-	                                        process.on('SIGINT', () => {
-	                                                if (this.controller.started) {
-	                                                        console.log("\tCtrl+C or SIGINT detected ... stopping...");
-	                                                        this.stop().then(() => {
-	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'api'));
-	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'repo.lock'));
-	                                                        });
-	                                                }
-	                                        });
-	
-	                                        process.on('exit', () => {
-	                                                if (this.controller.started) {
-	                                                        this.stop().then(() => {
-	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'api'));
-	                                                                fs.unlinkSync(path.join(this.cfsrc.repoPathGo, 'repo.lock'));
-	                                                        });
-	                                                }
-	                                        });
-	
+
 	                                        this.controller = ipfsFactory;
 	                                        let apiAddr = ipfsFactory.api.apiHost;
 	                                        let apiPort = ipfsFactory.api.apiPort;
@@ -1224,4 +1205,22 @@ const server = jayson.server(
     }
 );
 
-server.http().listen(3000);
+const httpServ = server.http();
+
+process.on('SIGINT', () => {
+   console.log("\tRPC Server stopping ...");
+   if (ipfsi.controller.started) {
+	console.log("\tIPFS Server stopping ...");
+	ipfsi.stop().then(() => {
+	        fs.unlinkSync(path.join(ipfsi.cfsrc.repoPathGo, 'api'));
+	        fs.unlinkSync(path.join(ipfsi.cfsrc.repoPathGo, 'repo.lock'));
+   		httpServ.close();	
+   		process.exit(0);
+	})
+   } else {
+   	httpServ.close();	
+   	process.exit(0);
+   }
+})
+
+httpServ.listen(3000);

@@ -45,7 +45,7 @@ const replEvalPromise = (cmd,ctx,filename,cb) => {
 const terminal = (biapi) => {
   return biapi.init('masterpass') 
         .then((rc) => {
-		 if (rc.result) return ASCII_Art('BladeIron  DEV Console')
+		 if (rc.result) return ASCII_Art('ElevenBuckets :  BladeIron')
 	})
         .then((art) => {
           console.log(art + "\n");
