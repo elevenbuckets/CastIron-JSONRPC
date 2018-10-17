@@ -1113,13 +1113,13 @@ const server = jayson.server(
 
 	ipfs_connected()
         {
-		return Promise.resolve(ipfsi.ready);
+		return Promise.resolve(typeof(ipfsi.ipfsd) !== 'undefined' && ipfsi.ready);
 	},
 
 	ipfs_initialize(obj)
 	{
 		ipfsi.init(obj);
-		return ipfsi.start();		
+		return ipfsi.start().then(() => { return true;});		
 	},
 
 	ipfs_pullFile(args) // ipfs_pullFile(inhash, outpath)
