@@ -1014,9 +1014,11 @@ const server = jayson.server(
 			abiObj = biapi.CUE[appName].ABI[ctrName].filter((i) => { return (i.name === callName && i.constant === true) } );
 			
 			if (abiObj.length === 1 && abiObj[0].inputs.length === callObj.args.length) {
+				console.log("Calling " + callName)
 				let __call = (resolve, reject) => {
 					biapi.CUE[appName][ctrName][callName](...callObj.args, (err, result) => {
 						if (err) return reject(err);
+						console.log("HERE!")
 						resolve(result);
 					})
 				}
@@ -1226,6 +1228,11 @@ const server = jayson.server(
 		let ipfsCfg = obj.ipfs;
 		let gethChk = biapi.connected();
 		let ipfsChk = typeof(ipfsi.ipfsd) !== 'undefined' && ipfsi.ready;
+
+		console.log("DEBUG:");
+		console.log(obj);
+		console.log({gethChk});
+		console.log({ipfsChk});
 
 		biapi.setup(gethCfg);
 		ipfsi.init(ipfsCfg);
