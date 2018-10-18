@@ -1210,6 +1210,33 @@ const server = jayson.server(
 		} catch(err) {
 			return Promise.reject(server.error(404, err));
 		} 
+	},
+
+	full_checks()
+	{
+		let geth = biapi.connected();
+		let ipfs = typeof(ipfsi.ipfsd) !== 'undefined' && ipfsi.ready;
+
+		return Promise.resolve({geth, ipfs});
+	},
+
+	fully_initialize(obj)
+	{
+		let gethCfg = obj.geth;
+		let ipfsCfg = obj.ipfs;
+		let gethChk = biapi.connected();
+		let ipfsChk = typeof(ipfsi.ipfsd) !== 'undefined' && ipfsi.ready;
+
+		biapi.setup(gethCfg);
+		ipfsi.init(ipfsCfg);
+
+		let reqs = 
+		[
+			gethChk ? true : biapi.connect(),
+			ipfsChk ? true : ipfsi.start().then(() => { return true; })
+		];
+
+		return Promise.all(reqs);
 	}
     }
 );
